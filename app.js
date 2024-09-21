@@ -1,14 +1,16 @@
-const express = require('express');
 const qrcode = require('qrcode');
+const slugify = require('slugify');
 
 let data = {
-    "name": "test", 
-    "email": "test@example.com", 
+    "name": "ahmed", 
+    "email": "ahmed@gmail.com", 
+    "age": 21, 
     "gender": "male", 
     "id": 123
 };
 
 let stJson = JSON.stringify(data);
+// console.log(data);
 
 // qrcode.toString(stJson, function(err, result) {
 //     if (err) return console.log(err);
@@ -19,7 +21,9 @@ let stJson = JSON.stringify(data);
 //     console.log(result);
 // });
 
-qrcode.toFile('./qrcodes.png', stJson, function(err, result) {
+const path = slugify(data.name, { lower: true });
+// console.log(Path);
+qrcode.toFile(`./${path}.png`, stJson, function(err, result) {
     if (err) 
         return console.log(err);
 });
