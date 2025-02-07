@@ -1,29 +1,72 @@
-const qrcode = require('qrcode');
-const slugify = require('slugify');
+import express from 'express';
+import {v2 as cloudinary} from 'cloudinary';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { join, dirname } from 'path';
+import fs from 'fs';
+import QRCode from 'qrcode';
 
-let data = {
-    "name": "ahmed", 
-    "email": "ahmed@gmail.com", 
-    "age": 21, 
-    "gender": "male", 
-    "id": 123
-};
+// Configuration
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, 'config.env') });
 
-let stJson = JSON.stringify(data);
-// console.log(data);
+const app = express();
+const PORT = process.env.PORT || 4000;
+app.use(express.json());
 
-// qrcode.toString(stJson, function(err, result) {
-//     if (err) return console.log(err);
-//     console.log(result);
-// });
+cloudinary.config({
+    cloud_name: "dyd5lvwhc",
+    api_key: "265582136356322",
+    api_secret: "ev3oTL9BZs7AxlyxNdOavCXaAdw",
+});
 
-// qrcode.toDataURL(stJson, function(err, result) {
-//     console.log(result);
-// });
 
-const path = slugify(data.name, { lower: true });
-// console.log(Path);
-qrcode.toFile(`./${path}.png`, stJson, function(err, result) {
-    if (err) 
-        return console.log(err);
+async function generateAndUploadQrcode(data, fileName) {
+    try {
+        const tempDir = join(__dirname, 'temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir);
+        }
+        // Generate QR code and save it locally
+        const filePath = join(tempDir, `${fileName}.png`);
+        await QRCode.toFile(filePath, data);
+
+        console.log('QR code generated and saved locally:', filePath);
+
+        // Upload the QR code to Cloudinary
+        const result = await cloudinary.uploader.upload(filePath, {
+        folder: 'qr_codes', // Optional: specify a folder in Cloudinary
+        public_id: fileName, // Optional: specify a public ID
+        });
+
+        console.log('QR code uploaded to Cloudinary:', result.secure_url);
+
+        // Delete the local file after upload
+        fs.unlinkSync(filePath);
+        console.log('Local file deleted.');
+
+        return result.secure_url;
+    } catch (error) {
+        console.error('Error generating or uploading QR code:', error);
+        throw error;
+    }
+}
+
+app.get('/', async (req, res) => {
+    const data = JSON.stringify(req.body);
+    const fileName = `qr-code-${Date.now()}`;
+
+    try {
+        const qrcodeUrl = await generateAndUploadQrcode(data, fileName);
+        res.status(200).json({qrcodeUrl});
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate QR code' });
+    }
+})
+
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}!`);
 });
